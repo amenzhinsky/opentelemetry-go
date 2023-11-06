@@ -18,8 +18,6 @@
 package otlpconfig // import "go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp/internal/otlpconfig"
 
 const (
-	// DefaultCollectorGRPCPort is the default gRPC port of the collector.
-	DefaultCollectorGRPCPort uint16 = 4317
 	// DefaultCollectorHTTPPort is the default HTTP port of the collector.
 	DefaultCollectorHTTPPort uint16 = 4318
 	// DefaultCollectorHost is the host address the Exporter will attempt

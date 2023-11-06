@@ -40,10 +40,10 @@ type Option interface {
 	applyHTTPOption(otlpconfig.Config) otlpconfig.Config
 }
 
-func asHTTPOptions(opts []Option) []otlpconfig.HTTPOption {
-	converted := make([]otlpconfig.HTTPOption, len(opts))
+func asHTTPOptions(opts []Option) []otlpconfig.Option {
+	converted := make([]otlpconfig.Option, len(opts))
 	for i, o := range opts {
-		converted[i] = otlpconfig.NewHTTPOption(o.applyHTTPOption)
+		converted[i] = otlpconfig.NewOption(o.applyHTTPOption)
 	}
 	return converted
 }
@@ -53,11 +53,11 @@ func asHTTPOptions(opts []Option) []otlpconfig.HTTPOption {
 type RetryConfig retry.Config
 
 type wrappedOption struct {
-	otlpconfig.HTTPOption
+	otlpconfig.Option
 }
 
 func (w wrappedOption) applyHTTPOption(cfg otlpconfig.Config) otlpconfig.Config {
-	return w.ApplyHTTPOption(cfg)
+	return w.Apply(cfg)
 }
 
 // WithEndpoint allows one to set the address of the collector

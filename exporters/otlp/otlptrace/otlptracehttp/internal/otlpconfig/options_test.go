@@ -71,19 +71,15 @@ func TestConfigs(t *testing.T) {
 
 	tests := []struct {
 		name       string
-		opts       []GenericOption
+		opts       []Option
 		env        env
 		fileReader fileReader
-		asserts    func(t *testing.T, c *Config, grpcOption bool)
+		asserts    func(t *testing.T, c *Config)
 	}{
 		{
 			name: "Test default configs",
-			asserts: func(t *testing.T, c *Config, grpcOption bool) {
-				if grpcOption {
-					assert.Equal(t, "localhost:4317", c.Traces.Endpoint)
-				} else {
-					assert.Equal(t, "localhost:4318", c.Traces.Endpoint)
-				}
+			asserts: func(t *testing.T, c *Config) {
+				assert.Equal(t, "localhost:4318", c.Traces.Endpoint)
 				assert.Equal(t, NoCompression, c.Traces.Compression)
 				assert.Equal(t, map[string]string(nil), c.Traces.Headers)
 				assert.Equal(t, 10*time.Second, c.Traces.Timeout)
@@ -93,10 +89,10 @@ func TestConfigs(t *testing.T) {
 		// Endpoint Tests
 		{
 			name: "Test With Endpoint",
-			opts: []GenericOption{
+			opts: []Option{
 				WithEndpoint("someendpoint"),
 			},
-			asserts: func(t *testing.T, c *Config, grpcOption bool) {
+			asserts: func(t *testing.T, c *Config) {
 				assert.Equal(t, "someendpoint", c.Traces.Endpoint)
 			},
 		},
@@ -105,14 +101,10 @@ func TestConfigs(t *testing.T) {
 			env: map[string]string{
 				"OTEL_EXPORTER_OTLP_ENDPOINT": "https://env.endpoint/prefix",
 			},
-			asserts: func(t *testing.T, c *Config, grpcOption bool) {
+			asserts: func(t *testing.T, c *Config) {
 				assert.False(t, c.Traces.Insecure)
-				if grpcOption {
-					assert.Equal(t, "env.endpoint/prefix", c.Traces.Endpoint)
-				} else {
-					assert.Equal(t, "env.endpoint", c.Traces.Endpoint)
-					assert.Equal(t, "/prefix/v1/traces", c.Traces.URLPath)
-				}
+				assert.Equal(t, "env.endpoint", c.Traces.Endpoint)
+				assert.Equal(t, "/prefix/v1/traces", c.Traces.URLPath)
 			},
 		},
 		{
@@ -121,23 +113,21 @@ func TestConfigs(t *testing.T) {
 				"OTEL_EXPORTER_OTLP_ENDPOINT":        "https://overrode.by.signal.specific/env/var",
 				"OTEL_EXPORTER_OTLP_TRACES_ENDPOINT": "http://env.traces.endpoint",
 			},
-			asserts: func(t *testing.T, c *Config, grpcOption bool) {
+			asserts: func(t *testing.T, c *Config) {
 				assert.True(t, c.Traces.Insecure)
 				assert.Equal(t, "env.traces.endpoint", c.Traces.Endpoint)
-				if !grpcOption {
-					assert.Equal(t, "/", c.Traces.URLPath)
-				}
+				assert.Equal(t, "/", c.Traces.URLPath)
 			},
 		},
 		{
 			name: "Test Mixed Environment and With Endpoint",
-			opts: []GenericOption{
+			opts: []Option{
 				WithEndpoint("traces_endpoint"),
 			},
 			env: map[string]string{
 				"OTEL_EXPORTER_OTLP_ENDPOINT": "env_endpoint",
 			},
-			asserts: func(t *testing.T, c *Config, grpcOption bool) {
+			asserts: func(t *testing.T, c *Config) {
 				assert.Equal(t, "traces_endpoint", c.Traces.Endpoint)
 			},
 		},
@@ -146,7 +136,7 @@ func TestConfigs(t *testing.T) {
 			env: map[string]string{
 				"OTEL_EXPORTER_OTLP_ENDPOINT": "http://env_endpoint",
 			},
-			asserts: func(t *testing.T, c *Config, grpcOption bool) {
+			asserts: func(t *testing.T, c *Config) {
 				assert.Equal(t, "env_endpoint", c.Traces.Endpoint)
 				assert.Equal(t, true, c.Traces.Insecure)
 			},
@@ -156,7 +146,7 @@ func TestConfigs(t *testing.T) {
 			env: map[string]string{
 				"OTEL_EXPORTER_OTLP_ENDPOINT": "      http://env_endpoint    ",
 			},
-			asserts: func(t *testing.T, c *Config, grpcOption bool) {
+			asserts: func(t *testing.T, c *Config) {
 				assert.Equal(t, "env_endpoint", c.Traces.Endpoint)
 				assert.Equal(t, true, c.Traces.Insecure)
 			},
@@ -166,7 +156,7 @@ func TestConfigs(t *testing.T) {
 			env: map[string]string{
 				"OTEL_EXPORTER_OTLP_ENDPOINT": "https://env_endpoint",
 			},
-			asserts: func(t *testing.T, c *Config, grpcOption bool) {
+			asserts: func(t *testing.T, c *Config) {
 				assert.Equal(t, "env_endpoint", c.Traces.Endpoint)
 				assert.Equal(t, false, c.Traces.Insecure)
 			},
@@ -177,7 +167,7 @@ func TestConfigs(t *testing.T) {
 				"OTEL_EXPORTER_OTLP_ENDPOINT":        "HTTPS://overrode_by_signal_specific",
 				"OTEL_EXPORTER_OTLP_TRACES_ENDPOINT": "HtTp://env_traces_endpoint",
 			},
-			asserts: func(t *testing.T, c *Config, grpcOption bool) {
+			asserts: func(t *testing.T, c *Config) {
 				assert.Equal(t, "env_traces_endpoint", c.Traces.Endpoint)
 				assert.Equal(t, true, c.Traces.Insecure)
 			},
@@ -186,27 +176,18 @@ func TestConfigs(t *testing.T) {
 		// Certificate tests
 		{
 			name: "Test Default Certificate",
-			asserts: func(t *testing.T, c *Config, grpcOption bool) {
-				if grpcOption {
-					assert.NotNil(t, c.Traces.GRPCCredentials)
-				} else {
-					assert.Nil(t, c.Traces.TLSCfg)
-				}
+			asserts: func(t *testing.T, c *Config) {
+				assert.Nil(t, c.Traces.TLSCfg)
 			},
 		},
 		{
 			name: "Test With Certificate",
-			opts: []GenericOption{
+			opts: []Option{
 				WithTLSClientConfig(tlsCert),
 			},
-			asserts: func(t *testing.T, c *Config, grpcOption bool) {
-				if grpcOption {
-					// TODO: make sure gRPC's credentials actually works
-					assert.NotNil(t, c.Traces.GRPCCredentials)
-				} else {
-					// nolint:staticcheck // ignoring tlsCert.RootCAs.Subjects is deprecated ERR because cert does not come from SystemCertPool.
-					assert.Equal(t, tlsCert.RootCAs.Subjects(), c.Traces.TLSCfg.RootCAs.Subjects())
-				}
+			asserts: func(t *testing.T, c *Config) {
+				// nolint:staticcheck // ignoring tlsCert.RootCAs.Subjects is deprecated ERR because cert does not come from SystemCertPool.
+				assert.Equal(t, tlsCert.RootCAs.Subjects(), c.Traces.TLSCfg.RootCAs.Subjects())
 			},
 		},
 		{
@@ -217,13 +198,9 @@ func TestConfigs(t *testing.T) {
 			fileReader: fileReader{
 				"cert_path": []byte(WeakCertificate),
 			},
-			asserts: func(t *testing.T, c *Config, grpcOption bool) {
-				if grpcOption {
-					assert.NotNil(t, c.Traces.GRPCCredentials)
-				} else {
-					// nolint:staticcheck // ignoring tlsCert.RootCAs.Subjects is deprecated ERR because cert does not come from SystemCertPool.
-					assert.Equal(t, tlsCert.RootCAs.Subjects(), c.Traces.TLSCfg.RootCAs.Subjects())
-				}
+			asserts: func(t *testing.T, c *Config) {
+				// nolint:staticcheck // ignoring tlsCert.RootCAs.Subjects is deprecated ERR because cert does not come from SystemCertPool.
+				assert.Equal(t, tlsCert.RootCAs.Subjects(), c.Traces.TLSCfg.RootCAs.Subjects())
 			},
 		},
 		{
@@ -236,48 +213,40 @@ func TestConfigs(t *testing.T) {
 				"cert_path":    []byte(WeakCertificate),
 				"invalid_cert": []byte("invalid certificate file."),
 			},
-			asserts: func(t *testing.T, c *Config, grpcOption bool) {
-				if grpcOption {
-					assert.NotNil(t, c.Traces.GRPCCredentials)
-				} else {
-					// nolint:staticcheck // ignoring tlsCert.RootCAs.Subjects is deprecated ERR because cert does not come from SystemCertPool.
-					assert.Equal(t, tlsCert.RootCAs.Subjects(), c.Traces.TLSCfg.RootCAs.Subjects())
-				}
+			asserts: func(t *testing.T, c *Config) {
+				// nolint:staticcheck // ignoring tlsCert.RootCAs.Subjects is deprecated ERR because cert does not come from SystemCertPool.
+				assert.Equal(t, tlsCert.RootCAs.Subjects(), c.Traces.TLSCfg.RootCAs.Subjects())
 			},
 		},
 		{
 			name: "Test Mixed Environment and With Certificate",
-			opts: []GenericOption{},
+			opts: []Option{},
 			env: map[string]string{
 				"OTEL_EXPORTER_OTLP_CERTIFICATE": "cert_path",
 			},
 			fileReader: fileReader{
 				"cert_path": []byte(WeakCertificate),
 			},
-			asserts: func(t *testing.T, c *Config, grpcOption bool) {
-				if grpcOption {
-					assert.NotNil(t, c.Traces.GRPCCredentials)
-				} else {
-					// nolint:staticcheck // ignoring tlsCert.RootCAs.Subjects is deprecated ERR because cert does not come from SystemCertPool.
-					assert.Equal(t, tlsCert.RootCAs.Subjects(), c.Traces.TLSCfg.RootCAs.Subjects())
-				}
+			asserts: func(t *testing.T, c *Config) {
+				// nolint:staticcheck // ignoring tlsCert.RootCAs.Subjects is deprecated ERR because cert does not come from SystemCertPool.
+				assert.Equal(t, tlsCert.RootCAs.Subjects(), c.Traces.TLSCfg.RootCAs.Subjects())
 			},
 		},
 
 		// Headers tests
 		{
 			name: "Test With Headers",
-			opts: []GenericOption{
+			opts: []Option{
 				WithHeaders(map[string]string{"h1": "v1"}),
 			},
-			asserts: func(t *testing.T, c *Config, grpcOption bool) {
+			asserts: func(t *testing.T, c *Config) {
 				assert.Equal(t, map[string]string{"h1": "v1"}, c.Traces.Headers)
 			},
 		},
 		{
 			name: "Test Environment Headers",
 			env:  map[string]string{"OTEL_EXPORTER_OTLP_HEADERS": "h1=v1,h2=v2"},
-			asserts: func(t *testing.T, c *Config, grpcOption bool) {
+			asserts: func(t *testing.T, c *Config) {
 				assert.Equal(t, map[string]string{"h1": "v1", "h2": "v2"}, c.Traces.Headers)
 			},
 		},
@@ -287,15 +256,15 @@ func TestConfigs(t *testing.T) {
 				"OTEL_EXPORTER_OTLP_HEADERS":        "overrode_by_signal_specific",
 				"OTEL_EXPORTER_OTLP_TRACES_HEADERS": "h1=v1,h2=v2",
 			},
-			asserts: func(t *testing.T, c *Config, grpcOption bool) {
+			asserts: func(t *testing.T, c *Config) {
 				assert.Equal(t, map[string]string{"h1": "v1", "h2": "v2"}, c.Traces.Headers)
 			},
 		},
 		{
 			name: "Test Mixed Environment and With Headers",
 			env:  map[string]string{"OTEL_EXPORTER_OTLP_HEADERS": "h1=v1,h2=v2"},
-			opts: []GenericOption{},
-			asserts: func(t *testing.T, c *Config, grpcOption bool) {
+			opts: []Option{},
+			asserts: func(t *testing.T, c *Config) {
 				assert.Equal(t, map[string]string{"h1": "v1", "h2": "v2"}, c.Traces.Headers)
 			},
 		},
@@ -303,10 +272,10 @@ func TestConfigs(t *testing.T) {
 		// Compression Tests
 		{
 			name: "Test With Compression",
-			opts: []GenericOption{
+			opts: []Option{
 				WithCompression(GzipCompression),
 			},
-			asserts: func(t *testing.T, c *Config, grpcOption bool) {
+			asserts: func(t *testing.T, c *Config) {
 				assert.Equal(t, GzipCompression, c.Traces.Compression)
 			},
 		},
@@ -315,7 +284,7 @@ func TestConfigs(t *testing.T) {
 			env: map[string]string{
 				"OTEL_EXPORTER_OTLP_COMPRESSION": "gzip",
 			},
-			asserts: func(t *testing.T, c *Config, grpcOption bool) {
+			asserts: func(t *testing.T, c *Config) {
 				assert.Equal(t, GzipCompression, c.Traces.Compression)
 			},
 		},
@@ -324,19 +293,19 @@ func TestConfigs(t *testing.T) {
 			env: map[string]string{
 				"OTEL_EXPORTER_OTLP_TRACES_COMPRESSION": "gzip",
 			},
-			asserts: func(t *testing.T, c *Config, grpcOption bool) {
+			asserts: func(t *testing.T, c *Config) {
 				assert.Equal(t, GzipCompression, c.Traces.Compression)
 			},
 		},
 		{
 			name: "Test Mixed Environment and With Compression",
-			opts: []GenericOption{
+			opts: []Option{
 				WithCompression(NoCompression),
 			},
 			env: map[string]string{
 				"OTEL_EXPORTER_OTLP_TRACES_COMPRESSION": "gzip",
 			},
-			asserts: func(t *testing.T, c *Config, grpcOption bool) {
+			asserts: func(t *testing.T, c *Config) {
 				assert.Equal(t, NoCompression, c.Traces.Compression)
 			},
 		},
@@ -344,10 +313,10 @@ func TestConfigs(t *testing.T) {
 		// Timeout Tests
 		{
 			name: "Test With Timeout",
-			opts: []GenericOption{
+			opts: []Option{
 				WithTimeout(time.Duration(5 * time.Second)),
 			},
-			asserts: func(t *testing.T, c *Config, grpcOption bool) {
+			asserts: func(t *testing.T, c *Config) {
 				assert.Equal(t, 5*time.Second, c.Traces.Timeout)
 			},
 		},
@@ -356,7 +325,7 @@ func TestConfigs(t *testing.T) {
 			env: map[string]string{
 				"OTEL_EXPORTER_OTLP_TIMEOUT": "15000",
 			},
-			asserts: func(t *testing.T, c *Config, grpcOption bool) {
+			asserts: func(t *testing.T, c *Config) {
 				assert.Equal(t, c.Traces.Timeout, 15*time.Second)
 			},
 		},
@@ -366,7 +335,7 @@ func TestConfigs(t *testing.T) {
 				"OTEL_EXPORTER_OTLP_TIMEOUT":        "15000",
 				"OTEL_EXPORTER_OTLP_TRACES_TIMEOUT": "27000",
 			},
-			asserts: func(t *testing.T, c *Config, grpcOption bool) {
+			asserts: func(t *testing.T, c *Config) {
 				assert.Equal(t, c.Traces.Timeout, 27*time.Second)
 			},
 		},
@@ -376,10 +345,10 @@ func TestConfigs(t *testing.T) {
 				"OTEL_EXPORTER_OTLP_TIMEOUT":        "15000",
 				"OTEL_EXPORTER_OTLP_TRACES_TIMEOUT": "27000",
 			},
-			opts: []GenericOption{
+			opts: []Option{
 				WithTimeout(5 * time.Second),
 			},
-			asserts: func(t *testing.T, c *Config, grpcOption bool) {
+			asserts: func(t *testing.T, c *Config) {
 				assert.Equal(t, c.Traces.Timeout, 5*time.Second)
 			},
 		},
@@ -395,31 +364,10 @@ func TestConfigs(t *testing.T) {
 			}
 			t.Cleanup(func() { DefaultEnvOptionsReader = origEOR })
 
-			// Tests Generic options as HTTP Options
-			cfg := NewHTTPConfig(asHTTPOptions(tt.opts)...)
-			tt.asserts(t, &cfg, false)
-
-			// Tests Generic options as gRPC Options
-			cfg = NewGRPCConfig(asGRPCOptions(tt.opts)...)
-			tt.asserts(t, &cfg, true)
+			cfg := NewConfig(tt.opts...)
+			tt.asserts(t, &cfg)
 		})
 	}
-}
-
-func asHTTPOptions(opts []GenericOption) []HTTPOption {
-	converted := make([]HTTPOption, len(opts))
-	for i, o := range opts {
-		converted[i] = NewHTTPOption(o.ApplyHTTPOption)
-	}
-	return converted
-}
-
-func asGRPCOptions(opts []GenericOption) []GRPCOption {
-	converted := make([]GRPCOption, len(opts))
-	for i, o := range opts {
-		converted[i] = NewGRPCOption(o.ApplyGRPCOption)
-	}
-	return converted
 }
 
 func TestCleanPath(t *testing.T) {
